@@ -5,8 +5,8 @@ navbar:
   left:
   - text: Home
     href: index.html
-  - text: About
-    href: about.html
+  - text: Workflow
+    href: Workflow.html
   - text: License
     href: license.html
   right:
@@ -17,5 +17,11 @@ output:
   workflowr::wflow_html:
     toc: yes
     toc_float: yes
-    theme: cosmo
+    theme: journal
     highlight: textmate
+  workflowr::wflow_site:
+    toc: yes
+    toc_float: yes
+    theme: journal
+    highlight: textmate
+    
