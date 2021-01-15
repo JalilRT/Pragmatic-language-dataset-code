@@ -25,7 +25,7 @@ pacman::p_load(tidyverse,dplyr,
                class)
 ```
 
-Load softwares values
+Calculating k-nn neighboors regression
 
 ```{r eval=TRUE, message=FALSE, warning=FALSE, results='hide'}
 ## CAT12 ##
