@@ -1,5 +1,5 @@
 ---
-title: "Home"
+title: "A dataset to study pragmatic language code"
 site: workflowr::wflow_site
 output:
   workflowr::wflow_html:
@@ -8,4 +8,17 @@ editor_options:
   chunk_output_type: console
 ---
 
-Welcome to my research website.
+## A dataset to study pragmatic language, and its cognitive processes as theory of mind
+
+Datasets and code for the preprint: 
+
+Please let us know if something in the code is incomplete or files are missing or you have any problems.
+
+## About
+
+The present study is the result of the analysis from Pragmatic language database project. 
+
+## Authors
+
+Rasgado-Toledo, Jalil, Lizcano-Cortés Fernando, Olalde-Mathieu Víctor Enrique, Licea-Haquet Giovanna, Zamora-Ursulo Miguel Angel, Reyes-Aguilar, Azalea*, Giordano Magda
+

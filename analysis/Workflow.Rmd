@@ -1,0 +1,203 @@
+---
+title: "Workflow"
+author: "JalilRT; Victor"
+date: "2021-01-14"
+output: workflowr::wflow_html
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, echo=FALSE}
+knitr::opts_chunk$set(error = TRUE)
+```
+
+# Preprocessing
+
+# Cortical thickness as a Psychometric predictor
+
+Load the packages
+
+```{r}
+pacman::p_load(tidyverse,dplyr,
+               caret, pROC,
+               readxl, cowplot,
+               caTools,
+               class)
+```
+
+Load softwares values
+
+```{r eval=TRUE, message=FALSE, warning=FALSE, results='hide'}
+## CAT12 ##
+lr.cat=read.csv("data/ROI_catROIs_aparc_DK40_thickness.csv")
+lr.cat.r<-lr.cat %>% select(starts_with('r'))
+not_all_na <- function(x) any(!is.na(x))
+lr.cat.r<-lr.cat.r %>% select_if(not_all_na)
+lr.cat<-lr.cat %>% mutate(rMeanThickness=rowMeans(lr.cat.r))
+lr.cat<-data.frame(lr.cat[-139,],software=rep("1",145))
+lr.cat$names<-str_replace(lr.cat$names,"_T1w","")
+lr.cat<-lr.cat %>% mutate(MeanThickness=lr.cat %>% select(rMeanThickness,lMeanThickness) %>% rowMeans())
+
+## FS ##
+lh.fs=read.csv("data/FS_aparc_lh_thickness.csv",sep = "\t",stringsAsFactors = T)
+rh.fs=read.csv("data/FS_aparc_rh_thickness.csv",sep = "\t",stringsAsFactors = T)
+lr.fs=cbind(lh.fs,rh.fs)
+lr.fs=select(lr.fs,-c("BrainSegVolNotVent","eTIV","rh.aparc.thickness"))
+lr.fs=lr.fs %>% mutate(Order = as.numeric(gsub("sub-", "", lh.aparc.thickness))) %>% arrange(Order)
+lr.fs=data.frame(lr.fs[-139,],software=rep("0",145))
+col.lr.fs=str_replace(colnames(lr.fs),"_thickness","")
+colnames(lr.fs)=col.lr.fs
+col.lr.fs=str_replace(colnames(lr.fs),"h_","")
+colnames(lr.fs)=col.lr.fs
+lr.fs<-lr.fs %>% mutate(MeanThickness=lr.fs %>% select(rMeanThickness,lMeanThickness) %>% rowMeans())
+
+## CIVET ##
+lr.civet.l=read.csv("data/Civet_aparc_lh_thickness.csv")
+lr.civet.r=read.csv("data/Civet_aparc_rh_thickness.csv")
+lr.civet=cbind(lr.civet.l,lr.civet.r)
+lr.civet=lr.civet[-34]
+lr.civet=data.frame(lr.civet,software=rep("2",145))
+lr.civet<-lr.civet %>% mutate(MeanThickness=lr.civet %>% select(rMeanThickness,lMeanThickness) %>% rowMeans())
+
+
+#### Merge Software values #### only 31 structures per hemisphere
+
+l.cfsci<-list(lr.fs,lr.cat,lr.civet)
+fscc.lr <- Reduce(function(...) merge(..., all=TRUE), l.cfsci)
+lr.fs.cat.civet<-fscc.lr %>% select_if(~!any(is.na(.)) > 0)
+
+### Convert to factors ###
+lr.fs.cat.civet$software <- factor(lr.fs.cat.civet$software, 
+                         levels = c(1, 0, 2), 
+                         labels = c("cat", "fs","civet"))   
+
+### Select a samples ###
+set.seed(42)
+######## k-Nearest neighbors (kNN) ########
+
+######## Classification of laterality for FreeSurfer ########
+lr.fs<-lr.fs.cat.civet %>% filter(software == "fs")
+psych.data<-read.csv("data/data_fluidez_sst_edim2.csv")
+lr.fs.psych<-data.frame(cbind(lr.fs[-81,-65],psych.data[-c(139,81),-1])) #remove left side participant = 81
+lr.fs.psych<-na.omit(lr.fs.psych)
+
+# Training classification
+lr.fs.psych$Hemis<-factor(lr.fs.psych$Hemis)
+fs.train.c <- createDataPartition(y = lr.fs.psych$Hemis, p = 0.7, list = FALSE) #training with proportion (p) 
+fs.train <- lr.fs.psych[fs.train.c,]  
+fs.test <- lr.fs.psych[-fs.train.c,]
+
+## parameters ##
+#control with more
+sof.control <- trainControl(
+  method = "repeatedcv", 
+  number = 10, repeats = 3,
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE,
+  verboseIter = TRUE,
+  savePredictions = "final")
+
+#preprocessing with center (mean) and scale (sd), this is for normalizing
+fs.knntrain <- train(Hemis ~ ., 
+                         data = fs.train, 
+                         method = "knn",  
+                         metric="ROC",
+                         tuneLength = 20,
+                         trControl = sof.control,
+                         preProc = c("center","scale"),
+                         tuneGrid = expand.grid(k = 1:60))
+class(fs.knntrain)
+fs.knntrain
+plot(fs.knntrain) #accuracy plot with different k
+varImp(fs.knntrain)
+
+## Predict ##
+fs.knnPrediccion <- predict(fs.knntrain, newdata = fs.test )
+confusionMatrix(fs.knnPrediccion, fs.test$Hemis) #accuracy of model and others
+
+## REGRESSION
+
+reg.control <- trainControl(
+  method = "repeatedcv", 
+  number = 10, repeats = 3,
+  verboseIter = TRUE,
+  savePredictions = "final")
+
+reg.fs.knntrain<-train(Edimburgo ~ .,
+                          data = fs.train %>% select(-c("Hemis","Fluidez","SSTcomp","MeanThickness","rMeanThickness","lMeanThickness")),
+                          tuneGrid = expand.grid(k=1:70),
+                          method = 'knn',
+                          metric = 'Rsquared',
+                          trControl = reg.control,
+                          preProc = c('center', 'scale'))
+
+reg.fs.psych.predictions <- reg.fs.knntrain %>% predict(fs.test %>% select(-c("Hemis","Fluidez","SSTcomp")))
+
+# Fluidez 
+
+freg.fs.knntrain<-train(Fluidez ~ .,
+                       data = fs.train %>% select(-c("Hemis","Edimburgo","SSTcomp","MeanThickness","rMeanThickness","lMeanThickness")),
+                       tuneGrid = expand.grid(k=1:70),
+                       method = 'knn',
+                       metric = 'Rsquared',
+                       trControl = reg.control,
+                       preProc = c('center', 'scale'))
+
+freg.fs.psych.predictions <- freg.fs.knntrain %>% predict(fs.test%>% select(-c("Hemis","Edimburgo","SSTcomp","MeanThickness","rMeanThickness","lMeanThickness")))
+
+# SSTcomp
+
+sreg.fs.knntrain<-train(SSTcomp ~ .,
+                       data = fs.train%>% select(-c("Hemis","Edimburgo","Fluidez","MeanThickness","rMeanThickness","lMeanThickness")),
+                       tuneGrid = expand.grid(k=1:70),
+                       method = 'knn',
+                       metric = 'Rsquared',
+                       trControl = reg.control,
+                       preProc = c('center', 'scale'))
+
+sreg.fs.psych.predictions <- sreg.fs.knntrain %>% predict(fs.test%>% select(-c("Hemis","Edimburgo","Fluidez","MeanThickness","rMeanThickness","lMeanThickness")))
+
+### Comparison metrics
+
+# Edimburgo 
+varImp(reg.fs.knntrain)
+fs.mean.pred<-tibble(MeanThickness=fs.test$MeanThickness,Predictions=reg.fs.psych.predictions,Observed=fs.test$Edimburgo)
+fs.mean.pred<-fs.mean.pred %>% gather("Group","Edinburgh",2:3)
+ggthemr::ggthemr("fresh")
+fs_edim<-ggplot(fs.mean.pred,aes(x=Edinburgh,y=MeanThickness, colour=Group))+geom_point()+
+  ylab("Mean Thickness (mm)")+
+  geom_smooth(method = "lm", formula = y~x, se = F) + theme(legend.position = c(.2, .9),
+                                                            legend.title = element_blank())
+
+# Fluidez
+varImp(freg.fs.knntrain)
+fs.mean.pred.Fluidez<-tibble(MeanThickness=fs.test$MeanThickness,Predictions=freg.fs.psych.predictions,Observed=fs.test$Fluidez)
+fs.mean.pred.Fluidez<-fs.mean.pred.Fluidez %>% gather("Group","Fluency",2:3)
+fs_flu<-ggplot(fs.mean.pred.Fluidez,aes(x=Fluency,y=MeanThickness, colour=Group))+geom_point()+
+  ylab("")+
+  geom_smooth(method = "lm", formula = y~x, se = F)+ theme(legend.position = c(.85, .9),
+                                                           legend.title = element_blank())
+
+# SSTcom
+asdf<-varImp(sreg.fs.knntrain)
+plot(asdf,top=4)
+fs.mean.pred.SSTcom<-tibble(MeanThickness=fs.test$MeanThickness,Predictions=round(sreg.fs.psych.predictions),Observed=fs.test$SSTcom)
+fs.mean.pred.SSTcom<-fs.mean.pred.SSTcom %>% gather("Group","Comprehension",2:3)
+fs_sst<-ggplot(fs.mean.pred.SSTcom,aes(x=Comprehension,y=MeanThickness, colour=Group))+geom_point()+
+  ylab("")+
+  geom_smooth(method = "lm", formula = y~x, se = F)+ theme(legend.position = c(.2, .9),
+                                                           legend.title = element_blank())
+
+##### Plot figure #####
+FS_145<-ggdraw()+draw_image("/home/jalil/Documents/Doctorado/Pragmaticlab/paper_dataR/Project/145_FS.png")
+fig1<-plot_grid(FS_145,fs_flu,fs_edim,fs_sst, labels = "AUTO")
+
+```
+
+## Plots 
+
+```{r, fig.height=7, fig.width=6.2, fig.align='center'}
+FS_145
+fig1
+```
+
