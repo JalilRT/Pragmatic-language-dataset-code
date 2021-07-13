@@ -7,4 +7,4 @@ https://jalilrt.github.io/Pragmatic-language-dataset-code/
 
 Data:
 
-https://github.com/JalilRT/Pragmatic-language-dataset-code/tree/master
+https://github.com/JalilRT/Pragmatic-language-dataset/tree/master
