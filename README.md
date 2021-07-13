@@ -3,7 +3,7 @@ DOI: https://doi.org/10.3389/fnhum.2021.666210
 
 Workflow:
 
-https://jalilrt.github.io/Pragmatic-language-dataset-code/
+https://jalilrt.github.io/Pragmatic-language-dataset/
 
 Data:
 
