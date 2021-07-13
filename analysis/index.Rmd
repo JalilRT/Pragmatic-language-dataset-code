@@ -10,15 +10,17 @@ editor_options:
 
 ## A dataset to study pragmatic language, and its cognitive processes as theory of mind
 
-Datasets and code for the preprint: 
+Data and code for the paper: 
+https://doi.org/10.3389/fnhum.2021.666210
 
-Please let us know if something in the code is incomplete or files are missing or you have any problems.
+Please let us know if something in the code is incomplete, files are missing or you have any issues:
+In issues section or by mail: jalil.rasgadoto@gmail.com
 
 ## About
 
-The present study is the result of the analysis from Pragmatic language database project. 
+- The present dataset includes structural brain images, as well as resting state functional connectivity from six different projects of pragmatic language and its underlying cognitive processes in young neurotypical Mexican participants.
+- In Workflow tab we show the workflow for the analysis presented in the paper.
 
 ## Authors
 
-Rasgado-Toledo, Jalil, Lizcano-Cortés Fernando, Olalde-Mathieu Víctor Enrique, Licea-Haquet Giovanna, Zamora-Ursulo Miguel Angel, Reyes-Aguilar, Azalea*, Giordano Magda
-
+Jalil Rasgado-Toledo, Fernando Lizcano-Cortés, Víctor Enrique Olalde-Mathieu, Giovanna Licea-Haquet, Miguel Angel Zamora-Ursulo, Magda Giordano and Azalea Reyes-Aguilar
